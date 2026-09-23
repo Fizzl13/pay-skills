@@ -1,0 +1,183 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Ichimoku Cloud Signal",
+    "version": "1.0.0",
+    "description": "Real-time Ichimoku Cloud trading signal for a crypto pair, based on live Binance market data. Pay-per-call via x402.",
+    "x-guidance": "Use this when a trading agent needs a quick Ichimoku Cloud read (tenkan/kijun cross, cloud position, bullish/bearish/neutral signal) for one pair before deciding to act. It returns the raw indicator values, not a trade recommendation, and it is not a full OHLCV history feed.",
+    "contact": {
+      "email": "frits.zwager@gmail.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://ichimoku-signal.onrender.com"
+    }
+  ],
+  "paths": {
+    "/signal/{pair}": {
+      "get": {
+        "operationId": "getIchimokuSignal",
+        "summary": "Get the Ichimoku Cloud signal for a trading pair",
+        "tags": [
+          "trading",
+          "crypto",
+          "technical-analysis",
+          "ichimoku"
+        ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.02"
+          },
+          "networks": [
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+            "eip155:8453"
+          ],
+          "asset": "USDC"
+        },
+        "parameters": [
+          {
+            "name": "pair",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9]{2,12}(-[A-Za-z0-9]{2,12})?$",
+              "example": "BTC-USDT"
+            },
+            "description": "Trading pair listed on Binance.US, e.g. BTC-USDT, ETH-USDT or BTCUSDT",
+            "example": "BTC-USDT"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "1h",
+              "enum": [
+                "1m",
+                "3m",
+                "5m",
+                "15m",
+                "30m",
+                "1h",
+                "2h",
+                "4h",
+                "6h",
+                "8h",
+                "12h",
+                "1d",
+                "3d",
+                "1w",
+                "1M"
+              ]
+            },
+            "description": "Candle interval, e.g. 1h, 4h, 1d",
+            "example": "1h"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
+              "default": "json"
+            },
+            "description": "Response format. 'html' returns a human-readable page (used by the browser paywall); agents should use the default JSON."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ichimoku Cloud signal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pair": {
+                      "type": "string"
+                    },
+                    "interval": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "tenkan_sen": {
+                      "type": "number"
+                    },
+                    "kijun_sen": {
+                      "type": "number"
+                    },
+                    "senkou_span_a": {
+                      "type": "number"
+                    },
+                    "senkou_span_b": {
+                      "type": "number"
+                    },
+                    "cloud_position": {
+                      "type": "string",
+                      "enum": [
+                        "above_cloud",
+                        "below_cloud",
+                        "in_cloud"
+                      ]
+                    },
+                    "tenkan_kijun_cross": {
+                      "type": "string",
+                      "enum": [
+                        "bullish_cross",
+                        "bearish_cross",
+                        "flat"
+                      ]
+                    },
+                    "signal": {
+                      "type": "string",
+                      "enum": [
+                        "bullish",
+                        "bearish",
+                        "neutral"
+                      ]
+                    }
+                  }
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Readable signal page when format=html"
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required (x402 protocol v2, $0.02 USDC on Base or Solana)"
+          },
+          "400": {
+            "description": "Invalid pair or interval (rejected before payment), or not enough candle history"
+          },
+          "404": {
+            "description": "Pair is not traded on Binance.US (rejected before payment)"
+          },
+          "502": {
+            "description": "Market data unavailable; a verified payment is not settled"
+          }
+        }
+      }
+    }
+  }
+}

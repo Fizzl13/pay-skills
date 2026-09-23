@@ -1,0 +1,162 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "x402 Doctor",
+    "version": "2.1.0",
+    "description": "Diagnoses why an x402-payable endpoint's payment flow is broken, without a funded wallet: challenge format, accepts[], resource URL, Solana settlement readiness, discovery and browser paywall.",
+    "x-guidance": "Use GET /api/v1/diagnose?url=<endpoint> when you need to know whether an x402 endpoint will accept payments from agents, or why it does not. It returns every check with pass/warn/fail and a hint to fix it. It never pays the endpoint it diagnoses."
+  },
+  "servers": [
+    {
+      "url": "https://x402-doctor.onrender.com"
+    }
+  ],
+  "paths": {
+    "/api/v1/diagnose": {
+      "get": {
+        "operationId": "diagnoseX402Endpoint",
+        "summary": "Check an x402 endpoint for payment problems",
+        "tags": [
+          "x402",
+          "developer-tools"
+        ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.01"
+          },
+          "networks": [
+            "eip155:8453",
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+          ],
+          "asset": "USDC"
+        },
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "example": "https://ichimoku-signal.onrender.com/signal/BTC-USDT",
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "The x402 endpoint to diagnose"
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "POST"
+              ]
+            },
+            "description": "Endpoint method; default tries GET then POST"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Diagnosis report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    },
+                    "method": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "GET",
+                        "POST",
+                        null
+                      ]
+                    },
+                    "overall": {
+                      "type": "string",
+                      "enum": [
+                        "pass",
+                        "warn",
+                        "fail"
+                      ]
+                    },
+                    "checks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "challenge",
+                              "accepts",
+                              "resource",
+                              "settlement",
+                              "discovery",
+                              "browser"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pass",
+                              "warn",
+                              "fail",
+                              "skip"
+                            ]
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "hint": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status",
+                          "message"
+                        ]
+                      }
+                    },
+                    "challenge": {
+                      "type": [
+                        "object",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "overall",
+                    "checks"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input (rejected before payment)"
+          },
+          "402": {
+            "description": "Payment required (x402 challenge in the PAYMENT-REQUIRED header, mirrored in the body)"
+          }
+        }
+      }
+    }
+  }
+}
