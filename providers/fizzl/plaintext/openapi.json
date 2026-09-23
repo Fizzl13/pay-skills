@@ -1,0 +1,121 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PlainText Wallet Approval Checker",
+    "version": "1.0.0",
+    "description": "Looks up a wallet's live token/NFT approvals via the GoPlus Security API and explains them in plain language for people with no crypto background.",
+    "contact": { "email": "frits.zwager@gmail.com" },
+    "x-guidance": "Use POST /api/check-wallet when you have an EVM wallet address and want to know whether its current token/NFT approvals are safe. Example: {\"address\":\"0x6B0F4651eD42893ab58139938175E4a69f175F25\",\"chain\":\"base\",\"kind\":\"token\"} — chain defaults to \"ethereum\" and kind defaults to \"token\" if omitted, so a call can be as small as {\"address\":\"0x...\"}. Use POST /api/explain instead when you already have a specific approval/permission JSON payload (from a scanner, a dapp prompt, etc.) and just want it translated to plain language, without an on-chain lookup. Both return {verdict: SAFE|CAUTION|RISK, explanation: string} so downstream agents can branch on verdict without parsing prose."
+  },
+  "servers": [{ "url": "https://smartcontractexplainer.onrender.com" }],
+  "paths": {
+    "/api/check-wallet": {
+      "post": {
+        "operationId": "checkWallet",
+        "summary": "Check a wallet's approvals and explain the risk",
+        "tags": ["Wallet"],
+        "x-payment-info": {
+          "price": { "mode": "fixed", "currency": "USD", "amount": "0.100000" },
+          "protocols": ["x402"],
+          "networks": ["eip155:8453", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"],
+          "asset": "USDC"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "description": "EVM wallet address to check",
+                    "pattern": "^0x[a-fA-F0-9]{40}$"
+                  },
+                  "chain": {
+                    "type": "string",
+                    "description": "Chain to check approvals on (default: ethereum)",
+                    "enum": ["ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche"]
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "Approval type to check (default: token)",
+                    "enum": ["token", "nft"]
+                  }
+                },
+                "required": ["address"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plain-language verdict on the wallet's approvals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "verdict": { "type": "string", "enum": ["SAFE", "CAUTION", "RISK"] },
+                    "explanation": { "type": "string" },
+                    "raw": { "type": "array", "items": { "type": "object" } }
+                  },
+                  "required": ["verdict", "explanation"]
+                }
+              }
+            }
+          },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    },
+    "/api/explain": {
+      "post": {
+        "operationId": "explainApproval",
+        "summary": "Generate a plain-language verdict for an approval payload",
+        "tags": ["Wallet"],
+        "x-payment-info": {
+          "price": { "mode": "fixed", "currency": "USD", "amount": "0.050000" },
+          "protocols": ["x402"],
+          "networks": ["eip155:8453", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"],
+          "asset": "USDC"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "description": "Arbitrary approval/permission JSON payload to explain"
+                  }
+                },
+                "required": ["data"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plain-language explanation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "verdict": { "type": "string", "enum": ["SAFE", "CAUTION", "RISK"] },
+                    "explanation": { "type": "string" }
+                  },
+                  "required": ["verdict", "explanation"]
+                }
+              }
+            }
+          },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    }
+  }
+}
