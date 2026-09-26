@@ -1,8 +1,8 @@
 ---
 name: ichimoku-signal
 title: "Ichimoku Signal"
-description: "Live Ichimoku Cloud signal for a crypto pair from Binance.US candles: bullish, bearish or neutral, price vs. cloud, tenkan/kijun cross and the tenkan, kijun and senkou A/B line values as JSON."
-use_case: "Use for Ichimoku Cloud analysis, crypto trend direction, above/below-the-cloud checks, tenkan-kijun crosses, trading agent entry filters and technical signals for pairs like SOL-USDT or BTC-USDT on 1m to 1M timeframes."
+description: "Is a crypto pair bullish, bearish or neutral right now? Ichimoku Cloud trend signal, 6-indicator confluence, support/resistance levels with stop and targets, and a 148-coin market scan. Top 200 coins, any interval."
+use_case: "Use when an agent needs a trend read for BTC, ETH, SOL or any top-200 coin: bullish/bearish/neutral, indicator confluence (RSI, MACD, EMA, Bollinger), stop and take-profit levels, or which coins are bullish right now."
 category: finance
 service_url: https://ichimoku-signal.onrender.com
 version: v1
@@ -10,30 +10,18 @@ openapi:
   path: openapi.json
 ---
 
-Ichimoku Signal computes the Ichimoku Cloud for a spot pair listed on
-Binance.US and returns a single verdict (`bullish`, `bearish` or `neutral`)
-together with the inputs behind it: where the price sits relative to the
-cloud (`above_cloud`, `below_cloud`, `in_cloud`), the tenkan/kijun cross and
-every line value. Candles are fetched live on each call.
+Crypto technical signals for AI agents, paid per call with x402 on Base or Solana. Candles come live from Binance.US, then Kraken, Gate or MEXC, so the top 200 coins are covered on any interval from 1m to 1M.
 
-One call costs $0.02 USDC on Solana mainnet (Base is also accepted). The
-service validates the pair before the payment step: an unknown pair returns
-HTTP 400/404 without a charge, and a request that errors after payment is
-not settled.
+- **`GET /signal/{pair}`** ($0.02): the Ichimoku Cloud signal: bullish, bearish or neutral, with the cloud position, the tenkan/kijun cross, the price and all five Ichimoku lines.
+- **`GET /signals/{pair}`** ($0.10): six indicators in one call (Ichimoku, RSI, MACD, EMA 50/200, Bollinger Bands, volume), each with its vote, plus a combined signal and confidence.
+- **`GET /levels/{pair}`** ($0.05): support and resistance, ATR, pivots, Fibonacci and Ichimoku levels, plus a long and a short plan with stop, two targets and risk/reward. Levels, not advice.
+- **`GET /scan`** ($0.25): the Ichimoku signal for 148 coins at once, strongest bullish first, with market breadth; `&signal=bullish` returns only the bullish ones.
 
-## Identifier formats
-
-- `pair` is a Binance.US spot pair: `BTC-USDT`, `ETH-USDT`, `SOL-USDT`, or
-  without the dash (`BTCUSDT`). Case-insensitive.
-- `interval` is one of `1m 3m 5m 15m 30m 1h 2h 4h 6h 8h 12h 1d 3d 1w 1M`
-  (default `1h`).
+A free daily trend per pair is at `GET /api/trend/{pair}`, and an MCP server is at `https://ichimoku-signal.onrender.com/mcp`.
 
 ## Spend-aware usage
 
-- One call answers one pair on one timeframe; ask for the timeframe the task
-  needs instead of sweeping all of them.
-- The signal only changes when a candle closes: reuse a result for the rest
-  of the current candle (for example up to an hour on `1h`) instead of
-  polling.
-- Use the `signal` field for a quick go/no-go and the line values only when
-  the user asks for the detail.
+- **Try the free daily trend first** (`/api/trend/{pair}`): if the daily direction already answers the question, no paid call is needed.
+- **One `/scan` instead of many `/signal` calls** when comparing more than about ten coins.
+- **Match the interval to the decision:** `4h` or `1d` for positioning, shorter intervals only for intraday timing. A signal does not change between candle closes, so do not poll faster than the interval.
+- **Signals are technical indicators, not financial advice.**

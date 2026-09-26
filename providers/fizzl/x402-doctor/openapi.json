@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "x402 Doctor",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "Diagnoses why an x402-payable endpoint's payment flow is broken, without a funded wallet: challenge format, accepts[], resource URL, Solana settlement readiness, discovery and browser paywall.",
-    "x-guidance": "Before paying an unknown x402 endpoint, call GET /api/v1/preflight?url=<endpoint>&max_usd=<budget> ($0.001): it answers go, caution or no_go with the recommended payment option and the reasons. To debug your own endpoint, call GET /api/v1/diagnose?url=<endpoint> ($0.01): every check with pass/warn/fail and a fix hint. Neither ever pays the endpoint."
+    "x-guidance": "Before paying an unknown x402 endpoint, call GET /api/v1/preflight?url=<endpoint>&max_usd=<budget> ($0.001): it answers go, caution or no_go with the recommended payment option and the reasons. To debug your own endpoint, call GET /api/v1/diagnose?url=<endpoint> ($0.01): every check with pass/warn/fail and a fix hint. To get the code that fixes it, call GET /api/v1/fix?url=<endpoint> ($0.05): per problem the concrete change for your stack, filled in with your own values. None of them ever pays the endpoint."
   },
   "servers": [
     {
@@ -106,6 +106,7 @@
                               "accepts",
                               "resource",
                               "settlement",
+                              "wallets",
                               "discovery",
                               "browser"
                             ]
@@ -116,6 +117,7 @@
                               "pass",
                               "warn",
                               "fail",
+                              "info",
                               "skip"
                             ]
                           },
@@ -131,6 +133,41 @@
                           "status",
                           "message"
                         ]
+                      }
+                    },
+                    "wallets": {
+                      "type": "array",
+                      "description": "Which wallets can pay: per wallet, the networks where payment works (yes) and where it fails, with the reason (no).",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "wallet": {
+                            "type": "string"
+                          },
+                          "agent": {
+                            "type": "boolean"
+                          },
+                          "yes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "no": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "network": {
+                                  "type": "string"
+                                },
+                                "reason": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     },
                     "challenge": {
@@ -368,6 +405,205 @@
                     "summary",
                     "options",
                     "reasons"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input (rejected before payment)"
+          },
+          "402": {
+            "description": "Payment required (x402 challenge in the PAYMENT-REQUIRED header, mirrored in the body)"
+          }
+        }
+      }
+    },
+    "/api/v1/fix": {
+      "get": {
+        "operationId": "fixX402Endpoint",
+        "summary": "Get the code that fixes an x402 endpoint",
+        "tags": [
+          "x402",
+          "developer-tools"
+        ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.05"
+          },
+          "networks": [
+            "eip155:8453",
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+          ],
+          "asset": "USDC"
+        },
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "example": "https://x402-doctor.onrender.com/demo/broken",
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "Your x402 endpoint"
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "POST"
+              ]
+            },
+            "description": "Endpoint method; default tries GET then POST"
+          },
+          {
+            "name": "stack",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "express",
+                "next",
+                "hono",
+                "node",
+                "python",
+                "generic"
+              ]
+            },
+            "description": "Your stack, if detection from the response headers is wrong"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per problem: why, steps and code for your stack",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    },
+                    "overall": {
+                      "type": "string",
+                      "enum": [
+                        "pass",
+                        "warn",
+                        "fail"
+                      ]
+                    },
+                    "stack": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "enum": [
+                            "express",
+                            "next",
+                            "hono",
+                            "node",
+                            "python",
+                            "generic"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "detected_from": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "fixes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "recipe": {
+                            "type": "string"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": [
+                              "fail",
+                              "warn"
+                            ]
+                          },
+                          "checks": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "why": {
+                            "type": "string"
+                          },
+                          "steps": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "code": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "language": {
+                                  "type": "string"
+                                },
+                                "stack": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "snippet": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "verify": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "title",
+                          "why",
+                          "steps",
+                          "code"
+                        ]
+                      }
+                    },
+                    "unfixed": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "fixes"
                   ]
                 }
               }
