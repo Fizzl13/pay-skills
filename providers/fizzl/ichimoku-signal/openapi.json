@@ -1377,6 +1377,10 @@
                         },
                         "top": {
                           "type": "integer"
+                        },
+                        "liquid_top": {
+                          "type": "integer",
+                          "description": "Present when the liquid_top parameter was used: only the N most traded coins were considered"
                         }
                       }
                     },
