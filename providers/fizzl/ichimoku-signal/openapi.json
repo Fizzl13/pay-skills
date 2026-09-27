@@ -1443,10 +1443,8 @@
                             "type": "string"
                           },
                           "obstacle_before_target": {
-                            "type": [
-                              "number",
-                              "null"
-                            ]
+                            "type": "number",
+                            "nullable": true
                           },
                           "warning": {
                             "type": "string"
