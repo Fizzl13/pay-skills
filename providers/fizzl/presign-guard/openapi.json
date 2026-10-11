@@ -1021,7 +1021,9 @@
                 "arbitrum",
                 "optimism",
                 "polygon",
-                "bsc"
+                "bsc",
+                "xrpl",
+                "algorand"
               ],
               "description": "Chain the token lives on"
             },
@@ -1033,7 +1035,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Solana mint address (base58) or EVM token contract (0x...)"
+              "description": "Solana mint address (base58), EVM token contract (0x...), an XRPL token as CURRENCY.rIssuer (e.g. RLUSD.rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De), or an Algorand asset id (e.g. 31566704)"
             },
             "example": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
           }
