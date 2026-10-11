@@ -3,8 +3,8 @@
   "info": {
     "title": "presign-guard",
     "version": "2.3.0",
-    "description": "Pre-sign risk check for AI agents: a green/orange/red verdict with reason codes before signing an EVM transaction, approval or EIP-712 signature. Checks the spender or recipient (including OFAC SDN sanctions), the token itself (honeypot, impersonation, high tax) and, with origin, how old the requesting site's domain is. Plus GET /v1/token: a verdict on any Solana or EVM token before buying, holding or accepting it, and GET /v1/approvals: an audit of a wallet's open token approvals with the ones to revoke.",
-    "x-guidance": "Call POST /v1/check with what you are about to sign, before you sign it. Only proceed on green; on orange ask your user; never sign on red. For a signature, pass the exact eth_signTypedData_v4 payload as typedData. Pass origin (the site asking) to catch newly registered phishing domains. Use /v1/check/explain when a person needs the reason in plain language (lang en or nl). Before buying or accepting a token, call GET /v1/token?chain=solana&address=<mint> (or chain=base with a 0x address): the same green/orange/red logic plus a grade, a one-line summary and market data. To clean up a wallet, call GET /v1/approvals?chain=base&address=<wallet>: every open token approval with who the spender is, and which ones to revoke."
+    "description": "Pre-sign risk check for AI agents: a green/orange/red verdict with reason codes before signing an EVM transaction, approval or EIP-712 signature, a Solana transaction (every instruction decoded, then simulated) or an XRP Ledger transaction. Checks the spender or recipient (including OFAC SDN sanctions), the token itself (honeypot, impersonation, high tax) and, with origin, how old the requesting site's domain is. Plus GET /v1/token: a verdict on any Solana or EVM token before buying, holding or accepting it, and GET /v1/approvals: an audit of a wallet's open token approvals with the ones to revoke.",
+    "x-guidance": "Call POST /v1/check with what you are about to sign, before you sign it. Only proceed on green; on orange ask your user; never sign on red. For a signature, pass the exact eth_signTypedData_v4 payload as typedData. Pass origin (the site asking) to catch newly registered phishing domains. For a Solana transaction, send type solana with the base64 wire transaction as transaction: it is decoded and simulated, and a token account handed to someone else is red. Use /v1/check/explain when a person needs the reason in plain language (lang en or nl). Before buying or accepting a token, call GET /v1/token?chain=solana&address=<mint> (or chain=base with a 0x address): the same green/orange/red logic plus a grade, a one-line summary and market data. To clean up a wallet, call GET /v1/approvals?chain=base&address=<wallet>: every open token approval with who the spender is, and which ones to revoke."
   },
   "servers": [
     {
@@ -26,7 +26,8 @@
             "x402"
           ],
           "networks": [
-            "eip155:8453"
+            "eip155:8453",
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
           ],
           "asset": "USDC"
         },
@@ -42,9 +43,30 @@
                     "enum": [
                       "approval",
                       "transaction",
-                      "signature"
+                      "signature",
+                      "message",
+                      "solana",
+                      "xrpl"
                     ],
-                    "description": "What the agent is about to sign"
+                    "description": "What the agent is about to sign (message: a plain personal_sign / eth_sign message; solana: a Solana transaction; xrpl: an XRP Ledger transaction)"
+                  },
+                  "transaction": {
+                    "type": "string",
+                    "maxLength": 2400,
+                    "description": "solana: the base64 wire transaction about to be signed (legacy or v0). Decoded and simulated: red SOLANA_TOKEN_ACCOUNT_TAKEOVER (SetAuthority hands a token account to someone else) and SOLANA_ACCOUNT_ASSIGN (the wallet handed to a program); orange SOLANA_UNLIMITED_DELEGATE, SOLANA_DURABLE_NONCE, SOLANA_CLOSE_TO_OTHER, HIDDEN_APPROVAL, SIMULATION_FAILS. from (optional) names the wallet if it is not the fee payer"
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "personal_sign",
+                      "eth_sign"
+                    ],
+                    "description": "message: how it is signed (default personal_sign); eth_sign is always red"
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 16384,
+                    "description": "message: the text or 0x-hex about to be signed. A Sign-In with Ethereum message for another site than origin is red (SIGN_IN_DOMAIN_MISMATCH), unreadable bytes are orange"
                   },
                   "chainId": {
                     "type": "integer",
@@ -55,7 +77,20 @@
                       137,
                       8453,
                       42161
-                    ]
+                    ],
+                    "description": "EVM chain; required for approval, transaction and signature"
+                  },
+                  "network": {
+                    "type": "string",
+                    "enum": [
+                      "xrpl:0",
+                      "xrpl:1"
+                    ],
+                    "description": "xrpl: the ledger (default xrpl:0, mainnet)"
+                  },
+                  "tx": {
+                    "type": "object",
+                    "description": "xrpl: the unsigned transaction JSON (TransactionType, Account, ...). Red: SetRegularKey/SignerListSet to another key, disabling the master key, AccountDelete, fake RLUSD; orange: partial payments, destinations that refuse or need a tag, issuers that can claw back or freeze, escrows and NFT giveaways"
                   },
                   "token": {
                     "type": "string",
@@ -81,6 +116,10 @@
                     "type": "string",
                     "description": "transaction: native value in wei"
                   },
+                  "from": {
+                    "type": "string",
+                    "description": "transaction, optional: the wallet that would send it. With it the transaction is simulated (eth_simulateV1 on all six chains): the answer gets a simulation field with every asset that leaves or arrives, orange HIDDEN_APPROVAL (an approval the call does not show, e.g. inside a router or batch), SIMULATION_NFT_OUT or SIMULATION_FAILS, and the intent check compares your intent with the real balance changes. A recipient that looks like an address this wallet paid before but isn't it is red ADDRESS_POISONING"
+                  },
                   "typedData": {
                     "type": [
                       "object",
@@ -92,6 +131,19 @@
                     "type": "string",
                     "description": "optional: the site asking for the signature or transaction (URL or hostname); a domain under 30 days old is orange"
                   },
+                  "intent": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "optional: what the agent is trying to do, in one sentence (e.g. \"swap 10 USDC for ETH on Uniswap\"); orange INTENT_MISMATCH when signing would do more or something else (TypeSafe Jev)"
+                  },
+                  "x402": {
+                    "type": "object",
+                    "description": "optional, EIP-3009 payments only: the x402 payment requirements the agent is paying, one entry of the 402 challenge's accepts list, as { accepted: { scheme, network, amount, asset, payTo, maxTimeoutSeconds, extra } } or the entry itself. Red X402_AMOUNT_ABOVE_REQUIRED, X402_RECIPIENT_MISMATCH, X402_ASSET_MISMATCH or X402_NETWORK_MISMATCH when the signature does not pay exactly what the seller asked; orange X402_VALIDITY_TOO_LONG when it stays valid far beyond the seller's timeout (a bearer authorization), X402_DOMAIN_MISMATCH, X402_SCHEME_UNEXPECTED"
+                  },
+                  "mandate": {
+                    "type": "object",
+                    "description": "optional, EIP-3009 payments only: the spending mandate the agent pays under (x402 authority extension, x402-mandate/1): { mandate, alg: \"Ed25519\", sig, paymentId }. Outside it (over perPayment or cap, other recipient, payer or token, expired, bad signature, nonce not the mandate binding) is red"
+                  },
                   "lang": {
                     "type": "string",
                     "enum": [
@@ -102,8 +154,7 @@
                   }
                 },
                 "required": [
-                  "type",
-                  "chainId"
+                  "type"
                 ]
               },
               "example": {
@@ -221,7 +272,8 @@
             "x402"
           ],
           "networks": [
-            "eip155:8453"
+            "eip155:8453",
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
           ],
           "asset": "USDC"
         },
@@ -237,9 +289,30 @@
                     "enum": [
                       "approval",
                       "transaction",
-                      "signature"
+                      "signature",
+                      "message",
+                      "solana",
+                      "xrpl"
                     ],
-                    "description": "What the agent is about to sign"
+                    "description": "What the agent is about to sign (message: a plain personal_sign / eth_sign message; solana: a Solana transaction; xrpl: an XRP Ledger transaction)"
+                  },
+                  "transaction": {
+                    "type": "string",
+                    "maxLength": 2400,
+                    "description": "solana: the base64 wire transaction about to be signed (legacy or v0). Decoded and simulated: red SOLANA_TOKEN_ACCOUNT_TAKEOVER (SetAuthority hands a token account to someone else) and SOLANA_ACCOUNT_ASSIGN (the wallet handed to a program); orange SOLANA_UNLIMITED_DELEGATE, SOLANA_DURABLE_NONCE, SOLANA_CLOSE_TO_OTHER, HIDDEN_APPROVAL, SIMULATION_FAILS. from (optional) names the wallet if it is not the fee payer"
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "personal_sign",
+                      "eth_sign"
+                    ],
+                    "description": "message: how it is signed (default personal_sign); eth_sign is always red"
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 16384,
+                    "description": "message: the text or 0x-hex about to be signed. A Sign-In with Ethereum message for another site than origin is red (SIGN_IN_DOMAIN_MISMATCH), unreadable bytes are orange"
                   },
                   "chainId": {
                     "type": "integer",
@@ -250,7 +323,20 @@
                       137,
                       8453,
                       42161
-                    ]
+                    ],
+                    "description": "EVM chain; required for approval, transaction and signature"
+                  },
+                  "network": {
+                    "type": "string",
+                    "enum": [
+                      "xrpl:0",
+                      "xrpl:1"
+                    ],
+                    "description": "xrpl: the ledger (default xrpl:0, mainnet)"
+                  },
+                  "tx": {
+                    "type": "object",
+                    "description": "xrpl: the unsigned transaction JSON (TransactionType, Account, ...). Red: SetRegularKey/SignerListSet to another key, disabling the master key, AccountDelete, fake RLUSD; orange: partial payments, destinations that refuse or need a tag, issuers that can claw back or freeze, escrows and NFT giveaways"
                   },
                   "token": {
                     "type": "string",
@@ -276,6 +362,10 @@
                     "type": "string",
                     "description": "transaction: native value in wei"
                   },
+                  "from": {
+                    "type": "string",
+                    "description": "transaction, optional: the wallet that would send it. With it the transaction is simulated (eth_simulateV1 on all six chains): the answer gets a simulation field with every asset that leaves or arrives, orange HIDDEN_APPROVAL (an approval the call does not show, e.g. inside a router or batch), SIMULATION_NFT_OUT or SIMULATION_FAILS, and the intent check compares your intent with the real balance changes. A recipient that looks like an address this wallet paid before but isn't it is red ADDRESS_POISONING"
+                  },
                   "typedData": {
                     "type": [
                       "object",
@@ -287,6 +377,19 @@
                     "type": "string",
                     "description": "optional: the site asking for the signature or transaction (URL or hostname); a domain under 30 days old is orange"
                   },
+                  "intent": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "optional: what the agent is trying to do, in one sentence (e.g. \"swap 10 USDC for ETH on Uniswap\"); orange INTENT_MISMATCH when signing would do more or something else (TypeSafe Jev)"
+                  },
+                  "x402": {
+                    "type": "object",
+                    "description": "optional, EIP-3009 payments only: the x402 payment requirements the agent is paying, one entry of the 402 challenge's accepts list, as { accepted: { scheme, network, amount, asset, payTo, maxTimeoutSeconds, extra } } or the entry itself. Red X402_AMOUNT_ABOVE_REQUIRED, X402_RECIPIENT_MISMATCH, X402_ASSET_MISMATCH or X402_NETWORK_MISMATCH when the signature does not pay exactly what the seller asked; orange X402_VALIDITY_TOO_LONG when it stays valid far beyond the seller's timeout (a bearer authorization), X402_DOMAIN_MISMATCH, X402_SCHEME_UNEXPECTED"
+                  },
+                  "mandate": {
+                    "type": "object",
+                    "description": "optional, EIP-3009 payments only: the spending mandate the agent pays under (x402 authority extension, x402-mandate/1): { mandate, alg: \"Ed25519\", sig, paymentId }. Outside it (over perPayment or cap, other recipient, payer or token, expired, bad signature, nonce not the mandate binding) is red"
+                  },
                   "lang": {
                     "type": "string",
                     "enum": [
@@ -297,8 +400,7 @@
                   }
                 },
                 "required": [
-                  "type",
-                  "chainId"
+                  "type"
                 ]
               },
               "example": {
