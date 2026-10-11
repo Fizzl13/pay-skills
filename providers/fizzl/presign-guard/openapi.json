@@ -1136,7 +1136,7 @@
                     "symbol": "Bonk"
                   },
                   "market": {
-                    "priceUsd": 0.0000123,
+                    "priceUsd": 1.23e-05,
                     "liquidityUsd": 422000,
                     "marketCapUsd": 1000000000,
                     "volume24hUsd": 350000,
@@ -1362,6 +1362,191 @@
           },
           "503": {
             "description": "GoPlus is down; nothing is charged, no verdict"
+          }
+        }
+      }
+    },
+    "/v1/screen": {
+      "get": {
+        "operationId": "screenWallet",
+        "summary": "Check if a wallet address is on the OFAC sanctions list",
+        "tags": [
+          "Wallet screening"
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.01"
+          },
+          "protocols": [
+            "x402"
+          ],
+          "networks": [
+            "eip155:8453",
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+          ],
+          "asset": "USDC"
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 120,
+              "description": "The wallet address to screen, any chain: EVM (0x...), Solana, Tron, Bitcoin, XRP Ledger, Algorand, or another currency OFAC lists. The format tells the chain."
+            },
+            "example": "TNiq9AXBp9EjUqhDhrwrfvAA8U3GUQZH81"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Screen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "verdict": {
+                      "type": "string",
+                      "enum": [
+                        "green",
+                        "orange",
+                        "red"
+                      ]
+                    },
+                    "grade": {
+                      "type": "string",
+                      "enum": [
+                        "SAFE",
+                        "CAUTION",
+                        "RISKY",
+                        "AVOID"
+                      ]
+                    },
+                    "one_liner": {
+                      "type": "string"
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": [
+                              "red",
+                              "orange",
+                              "info"
+                            ]
+                          },
+                          "details": {}
+                        },
+                        "required": [
+                          "code",
+                          "severity"
+                        ]
+                      }
+                    },
+                    "address": {
+                      "type": "object",
+                      "description": "address, format (evm, solana, tron, bitcoin, xrpl, algorand, other)"
+                    },
+                    "sanctions": {
+                      "type": "object",
+                      "description": "list (OFAC SDN), listed, matches (uid, name, type, programs, currency), published (the list's date), source"
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "checkedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "verdict",
+                    "grade",
+                    "one_liner",
+                    "reasons",
+                    "sanctions"
+                  ]
+                },
+                "example": {
+                  "verdict": "red",
+                  "grade": "AVOID",
+                  "one_liner": "AVOID: on the OFAC SDN list (BANK MARKAZI JOMHOURI ISLAMI IRAN)",
+                  "reasons": [
+                    {
+                      "code": "SANCTIONED_ADDRESS",
+                      "severity": "red",
+                      "details": {
+                        "list": "OFAC SDN",
+                        "matches": [
+                          {
+                            "uid": 4632,
+                            "name": "BANK MARKAZI JOMHOURI ISLAMI IRAN",
+                            "type": "Entity",
+                            "programs": [
+                              "IRAN",
+                              "IFSR",
+                              "IRGC",
+                              "SDGT"
+                            ],
+                            "currency": "TRX"
+                          }
+                        ],
+                        "published": "2026-10-09"
+                      }
+                    }
+                  ],
+                  "address": {
+                    "address": "TNiq9AXBp9EjUqhDhrwrfvAA8U3GUQZH81",
+                    "format": "tron"
+                  },
+                  "sanctions": {
+                    "list": "OFAC SDN",
+                    "listed": true,
+                    "matches": [
+                      {
+                        "uid": 4632,
+                        "name": "BANK MARKAZI JOMHOURI ISLAMI IRAN",
+                        "type": "Entity",
+                        "programs": [
+                          "IRAN",
+                          "IFSR",
+                          "IRGC",
+                          "SDGT"
+                        ],
+                        "currency": "TRX"
+                      }
+                    ],
+                    "published": "2026-10-09",
+                    "source": "ofac-sdn"
+                  },
+                  "sources": [
+                    "ofac-sdn"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request; nothing is charged"
+          },
+          "402": {
+            "description": "Payment Required"
+          },
+          "503": {
+            "description": "The sanctions list is not available; nothing is charged, no verdict"
           }
         }
       }

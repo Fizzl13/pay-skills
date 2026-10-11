@@ -1,8 +1,8 @@
 ---
 name: presign-guard
 title: "presign-guard"
-description: "Is it safe to sign or buy? Green/orange/red verdicts with reason codes for Solana, EVM, XRP Ledger and Algorand transactions, approvals and Permit/Permit2/EIP-3009/Seaport signatures, Solana and EVM token checks, and wallet approval audits."
-use_case: "Use before your agent signs a Solana, EVM, XRPL or Algorand transaction, approval or EIP-712 signature, buys or accepts a token (honeypot, rug-pull signs, taxes, liquidity), or to find which token approvals on a wallet to revoke. Never sign on red."
+description: "Is it safe to sign, buy or pay? Green/orange/red verdicts with reason codes for Solana, EVM, XRPL and Algorand transactions and signatures, token checks, wallet approval audits and OFAC sanctions screening of any wallet."
+use_case: "Use before your agent signs a Solana, EVM, XRPL or Algorand transaction or signature, buys or accepts a token, pays a wallet it does not know (OFAC screen), or to find which approvals to revoke. Never sign or pay on red."
 category: security
 service_url: https://presign-guard.onrender.com
 version: v1
@@ -16,8 +16,9 @@ Pre-sign and pre-buy safety checks for AI agents, paid per call with x402. Each 
 - **`POST /v1/check/explain`** ($0.03, Base or Solana): the same verdict plus a plain-language explanation in English or Dutch.
 - **`GET /v1/token`** ($0.01, Base or Solana): is this token safe to buy, hold or accept? Solana, EVM, XRP Ledger and Algorand tokens: mint, freeze or clawback powers, honeypot, buy/sell tax, LP lock, liquidity, age, holder concentration, look-alikes of USDC or RLUSD, plus market data.
 - **`GET /v1/approvals`** ($0.02, Base or Solana): every open ERC-20 allowance of an EVM wallet, which spenders are risky and which to revoke, with a revoke.cash link.
+- **`GET /v1/screen`** ($0.01, Base or Solana): is this wallet sanctioned? Any chain's address (Solana, EVM, Tron, Bitcoin, XRP Ledger, Algorand) against the OFAC SDN list, synced from the US Treasury, plus theft and phishing reports for EVM addresses. Red names the SDN entry. Use it before paying an address or accepting money from it.
 
-Sources: GoPlus, on-chain RPC and PG1 (OFAC SDN list, domain age of the requesting site). An MCP server with a free quick verdict is at `https://presign-guard.onrender.com/mcp`.
+Sources: GoPlus, on-chain RPC, the OFAC SDN list from the US Treasury (every check screens the parties a transaction pays or hands control to, on every chain) and PG1 (domain age of the requesting site). An MCP server with a free quick verdict is at `https://presign-guard.onrender.com/mcp`.
 
 ## Spend-aware usage
 
