@@ -1460,7 +1460,78 @@
                     },
                     "sanctions": {
                       "type": "object",
-                      "description": "list (OFAC SDN), listed, matches (uid, name, type, programs, currency), published (the list's date), source"
+                      "description": "The OFAC SDN screen of the address: presign-guard's own copy of the list, or PG1 for an EVM address while that copy is loading (source pg1)",
+                      "required": [
+                        "list",
+                        "listed",
+                        "matches",
+                        "published",
+                        "source"
+                      ],
+                      "properties": {
+                        "list": {
+                          "type": "string",
+                          "description": "The list screened against",
+                          "example": "OFAC SDN"
+                        },
+                        "listed": {
+                          "type": "boolean",
+                          "description": "True when the address is on the list"
+                        },
+                        "matches": {
+                          "type": "array",
+                          "description": "The SDN entries that name this address (empty when not listed)",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "uid",
+                              "name",
+                              "programs"
+                            ],
+                            "properties": {
+                              "uid": {
+                                "type": "integer",
+                                "description": "The SDN entry's uid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "The listed person or entity"
+                              },
+                              "type": {
+                                "type": "string",
+                                "description": "Individual, Entity, Vessel or Aircraft (not with source pg1)"
+                              },
+                              "programs": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "The sanctions programs, e.g. IRAN, SDGT"
+                              },
+                              "currency": {
+                                "type": "string",
+                                "description": "The digital currency the address is listed under, e.g. ETH, TRX, XBT (not with source pg1)"
+                              }
+                            }
+                          }
+                        },
+                        "published": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date",
+                          "description": "The publication date of the list used (null when the source doesn't say)"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "ofac-sdn",
+                            "pg1"
+                          ],
+                          "description": "ofac-sdn: presign-guard's own copy of the list; pg1: the PG1 fallback for EVM addresses"
+                        }
+                      }
                     },
                     "sources": {
                       "type": "array",
